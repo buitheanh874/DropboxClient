@@ -1,36 +1,67 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:orientation="horizontal"
-    android:padding="12dp">
+    android:padding="12dp"
+    android:background="?attr/selectableItemBackground"
+    android:clickable="true"
+    android:focusable="true">
 
     <ImageView
-        android:id="@+id/imgIcon"
-        android:layout_width="48dp"
-        android:layout_height="48dp"
-        android:src="@android:drawable/ic_menu_save"
-        android:layout_marginEnd="12dp" />
+        android:id="@+id/file_icon"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:src="@drawable/ic_file"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent"
+        android:contentDescription="File icon" />
 
-    <LinearLayout
+    <TextView
+        android:id="@+id/file_name"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_weight="1"
-        android:orientation="vertical">
+        android:layout_marginStart="12dp"
+        android:layout_marginEnd="8dp"
+        android:textSize="16sp"
+        android:textColor="@android:color/black"
+        android:textStyle="bold"
+        android:maxLines="1"
+        android:ellipsize="end"
+        app:layout_constraintStart_toEndOf="@id/file_icon"
+        app:layout_constraintEnd_toStartOf="@id/file_menu"
+        app:layout_constraintTop_toTopOf="parent"
+        tools:text="Document.pdf" />
 
-        <TextView
-            android:id="@+id/tvFileName"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="File name"
-            android:textStyle="bold" />
+    <TextView
+        android:id="@+id/file_details"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="12dp"
+        android:layout_marginTop="4dp"
+        android:textSize="12sp"
+        android:textColor="@android:color/darker_gray"
+        android:maxLines="1"
+        android:ellipsize="end"
+        app:layout_constraintStart_toEndOf="@id/file_icon"
+        app:layout_constraintEnd_toStartOf="@id/file_menu"
+        app:layout_constraintTop_toBottomOf="@id/file_name"
+        app:layout_constraintBottom_toBottomOf="parent"
+        tools:text="Sep 20, 2025 • 1.2 MB" />
 
-        <TextView
-            android:id="@+id/tvFileSize"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="123 KB"
-            android:textSize="12sp"
-            android:textColor="#777" />
-    </LinearLayout>
-</LinearLayout>
+    <ImageView
+        android:id="@+id/file_menu"
+        android:layout_width="24dp"
+        android:layout_height="24dp"
+        android:src="@drawable/ic_more_vert"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:clickable="true"
+        android:focusable="true"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent"
+        android:contentDescription="More options" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>
