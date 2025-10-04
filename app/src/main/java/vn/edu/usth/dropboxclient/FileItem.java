@@ -1,6 +1,8 @@
 package vn.edu.usth.dropboxclient;
 
-public class FileItem {
+import java.io.Serializable;
+
+public class FileItem implements Serializable {
     public String name;
     public String size;
     public String type;

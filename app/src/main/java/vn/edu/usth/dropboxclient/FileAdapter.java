@@ -33,14 +33,21 @@ public class FileAdapter extends RecyclerView.Adapter<FileAdapter.FileVH> {
         h.tvName.setText(it.name);
         h.tvSize.setText(it.size);
 
-        // Icon đơn giản dựa vào loại file
         int icon = android.R.drawable.ic_menu_save;
         if ("image".equalsIgnoreCase(it.type)) icon = android.R.drawable.ic_menu_gallery;
         if ("video".equalsIgnoreCase(it.type)) icon = android.R.drawable.ic_media_play;
         if ("pdf".equalsIgnoreCase(it.type))   icon = android.R.drawable.ic_menu_view;
 
         h.img.setImageResource(icon);
+
+        // Click item -> mở DetailActivity
+        h.itemView.setOnClickListener(v -> {
+            android.content.Intent intent = new android.content.Intent(v.getContext(), DetailActivity.class);
+            intent.putExtra("file_item", it);
+            v.getContext().startActivity(intent);
+        });
     }
+
 
     @Override
     public int getItemCount() {

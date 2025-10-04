@@ -1,7 +1,8 @@
 package vn.edu.usth.dropboxclient;
 
 import android.os.Bundle;
-
+import android.widget.TextView;
+import android.view.View;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
@@ -32,5 +33,16 @@ public class MainActivity extends AppCompatActivity {
         // 4. Gắn adapter
         FileAdapter adapter = new FileAdapter(files);
         rv.setAdapter(adapter);
+
+        // 5. Hiển thị tvEmpty nếu danh sách trống
+        TextView tvEmpty = findViewById(R.id.tvEmpty);
+
+        if (files.isEmpty()) {
+            tvEmpty.setVisibility(View.VISIBLE);
+            rv.setVisibility(View.GONE);
+        } else {
+            tvEmpty.setVisibility(View.GONE);
+            rv.setVisibility(View.VISIBLE);
+        }
     }
 }
