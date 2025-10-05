@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Dropbox Client</string>
+
+    <!-- Main Activity -->
+    <string name="title_files">My Files</string>
+    <string name="empty_message">No files yet. Tap + to upload</string>
+    <string name="upload_file">Upload File</string>
+    <string name="refresh">Refresh</string>
+
+    <!-- Upload Activity -->
+    <string name="choose_file">Choose File</string>
+    <string name="file_name">File Name</string>
+    <string name="upload">Upload</string>
+    <string name="uploading">Uploading...</string>
+    <string name="upload_success">Upload successful!</string>
+
+    <!-- Detail Activity -->
+    <string name="file_info">File Information</string>
+    <string name="name">Name:</string>
+    <string name="size">Size:</string>
+    <string name="type">Type:</string>
+    <string name="delete">Delete</string>
+    <string name="deleting">Deleting...</string>
+    <string name="delete_success">File deleted</string>
+
+    <!-- Errors -->
+    <string name="error_generic">Something went wrong</string>
+    <string name="error_no_file">Please select a file</string>
+</resources>
