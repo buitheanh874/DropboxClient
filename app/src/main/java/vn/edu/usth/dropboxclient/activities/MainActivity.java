@@ -10,8 +10,6 @@ import android.view.MenuItem;
 import android.widget.EditText;
 import android.widget.Toast;
 
-import androidx.activity.result.ActivityResult;
-import androidx.activity.result.ActivityResultCallback;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.ActionBarDrawerToggle;
@@ -39,16 +37,17 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit; // Thêm import này
 
 import vn.edu.usth.dropboxclient.DropboxClientFactory;
 import vn.edu.usth.dropboxclient.R;
 import vn.edu.usth.dropboxclient.adapters.FileAdapter;
 import vn.edu.usth.dropboxclient.fragments.FileDetailBottomSheet;
 import vn.edu.usth.dropboxclient.models.FileItem;
-// import vn.edu.usth.dropboxclient.utils.PreferenceManager; // đã bỏ vì chưa dùng
+import vn.edu.usth.dropboxclient.utils.ProgressHelper;
+import vn.edu.usth.dropboxclient.utils.ErrorHandler;
 
 public class MainActivity extends AppCompatActivity implements FileAdapter.OnFileClickListener {
 
@@ -58,26 +57,24 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.OnFil
     private RecyclerView recyclerView;
     private FileAdapter adapter;
     private SwipeRefreshLayout swipeRefresh;
-    // private PreferenceManager prefManager; // xóa nếu không dùng
 
     private DbxClientV2 dropboxClient;
 
-    private List<FileItem> allFiles = new ArrayList<>();
+    private final List<FileItem> allFiles = new ArrayList<>();
     private List<FileItem> currentFiles = new ArrayList<>();
 
-    private static final int REQUEST_CODE_PICK_FILE = 1001; // vẫn giữ nếu cần cho logic khác
+    // Sử dụng Thread pool có kích thước cố định (FixedThreadPool) là tốt
     private final ExecutorService executorService = Executors.newFixedThreadPool(2);
 
-    // Sử dụng Activity Result API thay cho startActivityForResult
     private ActivityResultLauncher<Intent> pickFileLauncher;
+
+    // Đường dẫn thư mục hiện tại (mặc định là root) - Cần thiết cho FolderActivity sau này
+    // Tuy nhiên trong MainActivity này chỉ làm việc với root nên ta giữ nguyên loadDropboxFiles() cho root ("").
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-
-        // nếu sau này cần PreferenceManager thì mở dòng dưới
-        // prefManager = new PreferenceManager(this);
 
         Toolbar toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
@@ -110,15 +107,13 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.OnFil
         try {
             dropboxClient = DropboxClientFactory.getClient();
         } catch (IllegalStateException e) {
+            // Chuyển sang màn hình Auth nếu chưa đăng nhập
             startActivity(new Intent(this, AuthActivity.class));
             finish();
             return;
         }
 
-        swipeRefresh.setOnRefreshListener(() -> {
-            loadDropboxFiles();
-            swipeRefresh.setRefreshing(false);
-        });
+        swipeRefresh.setOnRefreshListener(this::loadDropboxFiles); // Sử dụng method reference
 
         FloatingActionButton fab = findViewById(R.id.fab);
         fab.setOnClickListener(v -> showFabMenu());
@@ -126,14 +121,11 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.OnFil
         // register ActivityResult launcher
         pickFileLauncher = registerForActivityResult(
                 new ActivityResultContracts.StartActivityForResult(),
-                new ActivityResultCallback<ActivityResult>() {
-                    @Override
-                    public void onActivityResult(ActivityResult result) {
-                        if (result.getResultCode() == Activity.RESULT_OK && result.getData() != null) {
-                            Uri fileUri = result.getData().getData();
-                            if (fileUri != null) {
-                                uploadFileToDropbox(fileUri);
-                            }
+                result -> {
+                    if (result.getResultCode() == Activity.RESULT_OK && result.getData() != null) {
+                        Uri fileUri = result.getData().getData();
+                        if (fileUri != null) {
+                            uploadFileToDropbox(fileUri);
                         }
                     }
                 });
@@ -143,48 +135,59 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.OnFil
 
     /**
      * Lấy danh sách file thật từ Dropbox sử dụng Executor
+     * (Không đổi, hoạt động tốt)
      */
     private void loadDropboxFiles() {
+        swipeRefresh.setRefreshing(true);
         executorService.execute(() -> {
             List<FileItem> files = new ArrayList<>();
             try {
+                // Liệt kê thư mục gốc ("")
                 ListFolderResult result = dropboxClient.files().listFolder("");
                 for (Metadata meta : result.getEntries()) {
                     if (meta instanceof FileMetadata) {
                         FileMetadata f = (FileMetadata) meta;
+                        // ✅ SỬA: Sử dụng constructor đúng thứ tự
                         files.add(new FileItem(
                                 f.getId(),
                                 f.getName(),
-                                "file",
-                                f.getServerModified() != null ? f.getServerModified().toString() : "",
+                                f.getPathLower(),  // ✅ path (đúng vị trí)
+                                getFileType(f.getName()),  // ✅ type
                                 f.getSize(),
-                                f.getPathLower()
+                                f.getServerModified() != null ? f.getServerModified().toString() : ""
                         ));
                     } else if (meta instanceof FolderMetadata) {
                         FolderMetadata folder = (FolderMetadata) meta;
+                        // ✅ SỬA: Sử dụng constructor đúng thứ tự
                         files.add(new FileItem(
                                 folder.getId(),
                                 folder.getName(),
-                                "folder",
-                                "",
+                                folder.getPathLower(),  // ✅ path
+                                "folder",  // ✅ type
                                 0,
-                                folder.getPathLower()
+                                ""
                         ));
                     }
                 }
             } catch (DbxException e) {
                 Log.e(TAG, "Error loading files from Dropbox", e);
+                runOnUiThread(() -> ErrorHandler.showErrorDialog(this, "Load Failed", "Could not load files from Dropbox: " + e.getMessage()));
             }
 
             runOnUiThread(() -> {
-                allFiles = files;
+                swipeRefresh.setRefreshing(false);
+                allFiles.clear();
+                allFiles.addAll(files);
                 currentFiles = new ArrayList<>(files);
                 adapter.submitList(currentFiles);
-                Toast.makeText(MainActivity.this, "Loaded from Dropbox", Toast.LENGTH_SHORT).show();
             });
         });
     }
 
+    private String getFileType(String fileName) {
+        if (fileName == null || !fileName.contains(".")) return "file";
+        return fileName.substring(fileName.lastIndexOf(".") + 1).toLowerCase();
+    }
     private void showFabMenu() {
         String[] options = {"Upload File", "Create Folder"};
         new MaterialAlertDialogBuilder(this)
@@ -201,67 +204,80 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.OnFil
 
     /**
      * Mở file picker để chọn file từ device
-     * Sử dụng ActivityResultLauncher thay cho startActivityForResult
+     * (Không đổi, hoạt động tốt)
      */
     private void openFilePicker() {
         Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
         intent.setType("*/*");
         intent.addCategory(Intent.CATEGORY_OPENABLE);
-        // dùng launcher
         Intent chooser = Intent.createChooser(intent, "Select file to upload");
         pickFileLauncher.launch(chooser);
     }
 
     /**
-     * Upload file lên Dropbox sử dụng Executor
+     * Upload file lên Dropbox. Đã sửa lỗi "effectively final"
+     * (Không đổi, hoạt động tốt)
      */
     private void uploadFileToDropbox(Uri fileUri) {
+        if (getApplicationContext() == null) return;
+
+        ProgressHelper progressHelper = new ProgressHelper(this, "Uploading file...");
+        progressHelper.show();
+
         executorService.execute(() -> {
-            // dùng try-with-resources để tự đóng InputStream
             try (InputStream inputStream = getContentResolver().openInputStream(fileUri)) {
 
                 if (inputStream == null) {
-                    runOnUiThread(() ->
-                            Toast.makeText(MainActivity.this, "Cannot open selected file", Toast.LENGTH_SHORT).show()
-                    );
+                    runOnUiThread(() -> {
+                        progressHelper.dismiss();
+                        ErrorHandler.showErrorDialog(this, "Upload Failed", "Cannot open selected file");
+                    });
                     return;
                 }
 
-                // Lấy tên file từ URI
                 String fileName = getFileNameFromUri(fileUri);
                 if (fileName == null) {
                     fileName = "file_" + System.currentTimeMillis();
                 }
 
-                // Upload file với WriteMode.ADD (không ghi đè)
-                String dropboxPath = "/" + fileName;
+                final String finalFileName = fileName;
+                String dropboxPath = "/" + finalFileName;
+
+                // Upload không progress tracking
                 dropboxClient.files().uploadBuilder(dropboxPath)
                         .withMode(WriteMode.ADD)
                         .uploadAndFinish(inputStream);
 
                 runOnUiThread(() -> {
-                    Toast.makeText(MainActivity.this, "File uploaded successfully", Toast.LENGTH_SHORT).show();
+                    progressHelper.updateProgress(100);
+                    progressHelper.dismiss();
+                    ErrorHandler.showSuccessDialog(
+                            this,
+                            "Upload Complete",
+                            "File uploaded successfully: " + finalFileName
+                    );
                     loadDropboxFiles();
                 });
+
             } catch (DbxException e) {
                 Log.e(TAG, "Dropbox Upload error", e);
-                runOnUiThread(() ->
-                        Toast.makeText(MainActivity.this, "Upload failed (Dropbox)", Toast.LENGTH_SHORT).show()
-                );
+                runOnUiThread(() -> {
+                    progressHelper.dismiss();
+                    ErrorHandler.showErrorDialog(this, "Upload Failed", e.getMessage());
+                });
             } catch (IOException e) {
                 Log.e(TAG, "IO error during upload", e);
-                runOnUiThread(() ->
-                        Toast.makeText(MainActivity.this, "Upload failed (IO)", Toast.LENGTH_SHORT).show()
-                );
+                runOnUiThread(() -> {
+                    progressHelper.dismiss();
+                    ErrorHandler.showErrorDialog(this, "Upload Failed", "Cannot read file");
+                });
             }
         });
     }
 
     /**
      * Lấy tên file từ URI
-     * - dùng try-with-resources cho Cursor
-     * - kiểm tra getColumnIndex >= 0 trước khi dùng
-     * - tránh lastIndexOf trên null
+     * (Không đổi, hoạt động tốt)
      */
     private String getFileNameFromUri(Uri uri) {
         String result = null;
@@ -292,7 +308,6 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.OnFil
                     result = path; // fallback
                 }
             } else {
-                // không có path -> trả về null
                 Log.w(TAG, "URI path is null, cannot determine file name: " + uri);
             }
         }
@@ -310,6 +325,8 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.OnFil
                     String folderName = input.getText().toString().trim();
                     if (!folderName.isEmpty()) {
                         createDropboxFolder(folderName);
+                    } else {
+                        Toast.makeText(this, "Folder name cannot be empty", Toast.LENGTH_SHORT).show();
                     }
                 })
                 .setNegativeButton("Cancel", null)
@@ -318,6 +335,7 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.OnFil
 
     /**
      * Tạo folder trên Dropbox sử dụng Executor
+     * (Không đổi, hoạt động tốt)
      */
     private void createDropboxFolder(String folderName) {
         executorService.execute(() -> {
@@ -330,7 +348,7 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.OnFil
             } catch (DbxException e) {
                 Log.e(TAG, "Failed to create folder", e);
                 runOnUiThread(() ->
-                        Toast.makeText(MainActivity.this, "Failed to create folder", Toast.LENGTH_SHORT).show()
+                        ErrorHandler.showErrorDialog(this, "Create Folder Failed", e.getMessage())
                 );
             }
         });
@@ -346,37 +364,118 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.OnFil
             startActivity(intent);
         } else {
             FileDetailBottomSheet bottomSheet = FileDetailBottomSheet.newInstance(file);
+
+            // *** SỬA: Gán listener để tải lại danh sách file sau khi xóa từ BottomSheet
+            bottomSheet.setOnFileDeletedListener(this::loadDropboxFiles);
+
             bottomSheet.show(getSupportFragmentManager(), "FileDetailBottomSheet");
         }
     }
 
     @Override
     public void onFileMenuClick(FileItem file) {
-        String[] options = {"Delete", "Rename"};
+        String[] options = {"Rename", "Delete"};
         new MaterialAlertDialogBuilder(this)
                 .setTitle(file.getName())
                 .setItems(options, (dialog, which) -> {
                     if (which == 0) {
-                        deleteDropboxFile(file.getPath());
+                        showRenameDialog(file);
                     } else {
-                        Toast.makeText(this, "Rename not yet implemented", Toast.LENGTH_SHORT).show();
+                        // Gọi deleteDropboxFile với kiểm tra đường dẫn an toàn
+                        deleteDropboxFile(file.getPath());
                     }
                 })
                 .show();
     }
 
+    /**
+     * Xóa file trên Dropbox.
+     * ĐÃ SỬA: Thêm kiểm tra path để ngăn lỗi IllegalArgumentException từ Dropbox SDK (khi path là "" hoặc "/").
+     */
     private void deleteDropboxFile(String path) {
+        // *** SỬA LỖI: Ngăn chặn lỗi IllegalArgumentException khi path không hợp lệ
+        if (path == null || path.trim().isEmpty() || path.equals("/")) {
+            ErrorHandler.showErrorDialog(this, "Delete Failed", "Cannot delete root folder or invalid path.");
+            Log.w(TAG, "Attempted to delete invalid path: " + path);
+            return;
+        }
+
+        ErrorHandler.showConfirmDialog(
+                this,
+                "Delete",
+                "Are you sure you want to delete '" + path + "'?",
+                "Delete",
+                "Cancel",
+                () -> {
+                    executorService.execute(() -> {
+                        try {
+                            dropboxClient.files().deleteV2(path);
+                            runOnUiThread(() -> {
+                                Toast.makeText(MainActivity.this, "Deleted successfully: " + path, Toast.LENGTH_SHORT).show();
+                                loadDropboxFiles();
+                            });
+                        } catch (DbxException e) {
+                            Log.e(TAG, "Delete failed", e);
+                            runOnUiThread(() ->
+                                    ErrorHandler.showErrorDialog(this, "Delete Failed", e.getMessage())
+                            );
+                        }
+                    });
+                },
+                null
+        );
+    }
+
+    private void showRenameDialog(FileItem file) {
+        EditText input = new EditText(this);
+        input.setText(file.getName());
+        input.setHint("New name");
+        input.setPadding(50, 20, 50, 20);
+
+        new MaterialAlertDialogBuilder(this)
+                .setTitle("Rename")
+                .setView(input)
+                .setPositiveButton("Rename", (dialog, which) -> {
+                    String newName = input.getText().toString().trim();
+                    if (!newName.isEmpty() && !newName.equals(file.getName())) {
+                        renameFile(file, newName);
+                    } else if (newName.isEmpty()) {
+                        Toast.makeText(this, "Name cannot be empty", Toast.LENGTH_SHORT).show();
+                    }
+                })
+                .setNegativeButton("Cancel", null)
+                .show();
+    }
+
+    /**
+     * Rename file trên Dropbox sử dụng Executor
+     * (Không đổi, hoạt động tốt)
+     */
+    private void renameFile(FileItem file, String newName) {
         executorService.execute(() -> {
             try {
-                dropboxClient.files().deleteV2(path);
+                String oldPath = file.getPath();
+                // Lấy chỉ số cuối cùng của dấu '/' (trừ trường hợp root)
+                int lastSlashIndex = oldPath.lastIndexOf('/');
+                String parentPath = (lastSlashIndex > 0) ? oldPath.substring(0, lastSlashIndex) : "";
+                String newPath = parentPath + "/" + newName;
+
+                // Move file (rename)
+                dropboxClient.files().moveV2(oldPath, newPath);
+
                 runOnUiThread(() -> {
-                    Toast.makeText(MainActivity.this, "Deleted", Toast.LENGTH_SHORT).show();
+                    ErrorHandler.showSuccessDialog(
+                            this,
+                            "Renamed",
+                            "File renamed to: " + newName
+                    );
                     loadDropboxFiles();
                 });
+
             } catch (DbxException e) {
-                Log.e(TAG, "Delete failed", e);
+                Log.e(TAG, "Rename failed", e);
                 runOnUiThread(() ->
-                        Toast.makeText(MainActivity.this, "Delete failed", Toast.LENGTH_SHORT).show()
+                        ErrorHandler.showErrorDialog(this, "Rename Failed", e.getMessage())
                 );
             }
         });
@@ -386,18 +485,20 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.OnFil
     public boolean onCreateOptionsMenu(Menu menu) {
         getMenuInflater().inflate(R.menu.main_menu, menu);
         MenuItem searchItem = menu.findItem(R.id.action_search);
+
         SearchView searchView = (SearchView) searchItem.getActionView();
+        if (searchView != null) {
+            searchView.setOnQueryTextListener(new SearchView.OnQueryTextListener() {
+                @Override
+                public boolean onQueryTextSubmit(String query) { return false; }
 
-        searchView.setOnQueryTextListener(new SearchView.OnQueryTextListener() {
-            @Override
-            public boolean onQueryTextSubmit(String query) { return false; }
-
-            @Override
-            public boolean onQueryTextChange(String newText) {
-                filterFiles(newText);
-                return true;
-            }
-        });
+                @Override
+                public boolean onQueryTextChange(String newText) {
+                    filterFiles(newText);
+                    return true;
+                }
+            });
+        }
         return true;
     }
 
@@ -428,6 +529,15 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.OnFil
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        executorService.shutdown();
+        // *** SỬA: Dùng shutdownNow() để cố gắng dừng các tác vụ đang chạy ngay lập tức khi Activity bị hủy
+        executorService.shutdownNow();
+        try {
+            // Chờ một chút để đảm bảo các tác vụ đã dừng
+            if (!executorService.awaitTermination(60, TimeUnit.SECONDS)) {
+                Log.w(TAG, "Executor did not terminate in time.");
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
     }
 }

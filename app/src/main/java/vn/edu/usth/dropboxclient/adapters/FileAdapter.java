@@ -37,8 +37,11 @@ public class FileAdapter extends ListAdapter<FileItem, FileAdapter.FileViewHolde
 
         @Override
         public boolean areContentsTheSame(@NonNull FileItem oldItem, @NonNull FileItem newItem) {
+            // ✅ SỬA: Dùng Objects.equals() để xử lý null an toàn cho Date
             return oldItem.getName().equals(newItem.getName()) &&
-                    oldItem.getModified().equals(newItem.getModified());
+                    java.util.Objects.equals(oldItem.getModified(), newItem.getModified()) &&
+                    oldItem.getSize() == newItem.getSize() &&
+                    oldItem.getType().equals(newItem.getType());
         }
     };
 

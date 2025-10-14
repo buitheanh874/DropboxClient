@@ -1,7 +1,6 @@
 plugins {
     id("com.android.application")
-    // add Kotlin if needed:
-    // id("org.jetbrains.kotlin.android") version "1.9.24"
+    id("org.jetbrains.kotlin.android") version "1.9.24"
 }
 
 android {
@@ -30,6 +29,10 @@ android {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
     }
+
+    kotlinOptions {
+        jvmTarget = "11"
+    }
 }
 
 dependencies {
@@ -42,4 +45,9 @@ dependencies {
     annotationProcessor("com.github.bumptech.glide:compiler:4.15.1")
     implementation("com.google.code.gson:gson:2.10.1")
     implementation("com.dropbox.core:dropbox-core-sdk:5.4.0")
+
+    // Kotlin Coroutines
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3")
+    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.6.2")
 }
