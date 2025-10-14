@@ -64,7 +64,6 @@ public class FileAdapter extends ListAdapter<FileItem, FileAdapter.FileViewHolde
         private TextView nameView;
         private TextView detailsView;
         private ImageView menuView;
-
         public FileViewHolder(@NonNull View itemView) {
             super(itemView);
             iconView = itemView.findViewById(R.id.file_icon);
@@ -72,17 +71,13 @@ public class FileAdapter extends ListAdapter<FileItem, FileAdapter.FileViewHolde
             detailsView = itemView.findViewById(R.id.file_details);
             menuView = itemView.findViewById(R.id.file_menu);
         }
-
         public void bind(FileItem file, OnFileClickListener listener) {
             nameView.setText(file.getName());
-
             String details = file.getFormattedDate();
             if (!file.isFolder() && file.getSize() > 0) {
                 details += " • " + file.getFormattedSize();
             }
             detailsView.setText(details);
-
-            // Set icon based on file type
             int iconRes = R.drawable.ic_file;
             if (file.isFolder()) {
                 iconRes = R.drawable.ic_folder;

@@ -5,16 +5,9 @@ import android.content.SharedPreferences;
 
 import com.dropbox.core.oauth.DbxCredential;
 
-/**
- * Quản lý SharedPreferences cho app Dropbox Client:
- *  - Lưu theme, sort mode
- *  - Lưu thông tin đăng nhập Dropbox (access token, refresh token...)
- */
 public class PreferenceManager {
 
     private static final String PREF_NAME = "DropboxClonePrefs";
-
-    // 🔹 Các key cũ
     private static final String KEY_THEME = "theme";
     private static final String KEY_SORT_BY = "sort_by";
 
@@ -24,7 +17,6 @@ public class PreferenceManager {
     public static final String SORT_DATE = "date";
     public static final String SORT_SIZE = "size";
 
-    // 🔹 Các key mới cho Dropbox
     private static final String KEY_ACCESS_TOKEN = "access_token";
     private static final String KEY_REFRESH_TOKEN = "refresh_token";
     private static final String KEY_EXPIRES_AT = "expires_at";
@@ -36,7 +28,6 @@ public class PreferenceManager {
         prefs = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE);
     }
 
-    // ================== CÁC HÀM CŨ ==================
     public void setTheme(String theme) {
         prefs.edit().putString(KEY_THEME, theme).apply();
     }
@@ -53,9 +44,6 @@ public class PreferenceManager {
         return prefs.getString(KEY_SORT_BY, SORT_NAME);
     }
 
-    // ================== TOKEN DROPBOX ==================
-
-    /** ✅ Lưu thông tin đăng nhập Dropbox */
     public void saveDropboxCredential(DbxCredential credential) {
         if (credential == null) return;
         SharedPreferences.Editor editor = prefs.edit();
@@ -66,7 +54,6 @@ public class PreferenceManager {
         editor.apply();
     }
 
-    /** ✅ Lấy lại credential đã lưu (auto-login) */
     public DbxCredential getDropboxCredential() {
         String accessToken = prefs.getString(KEY_ACCESS_TOKEN, null);
         String refreshToken = prefs.getString(KEY_REFRESH_TOKEN, null);
@@ -76,11 +63,9 @@ public class PreferenceManager {
         if (accessToken == null || refreshToken == null || appKey == null) {
             return null;
         }
-
         return new DbxCredential(accessToken, expiresAt, refreshToken, appKey);
     }
 
-    /** ✅ Xoá thông tin đăng nhập Dropbox (logout) */
     public void clearDropboxCredential() {
         prefs.edit()
                 .remove(KEY_ACCESS_TOKEN)

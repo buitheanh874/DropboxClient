@@ -19,9 +19,8 @@ public class FileItem implements Serializable {
     private boolean isFolder;
     private Date modified;
     private long size;
-    private String type; // e.g. pdf, image, doc, etc.
+    private String type;
 
-    // ✅ Constructor cho File
     public FileItem(FileMetadata metadata) {
         this.id = metadata.getId();
         this.name = metadata.getName();
@@ -32,7 +31,6 @@ public class FileItem implements Serializable {
         this.type = extractType(name);
     }
 
-    // ✅ Constructor cho Folder
     public FileItem(FolderMetadata metadata) {
         this.id = metadata.getId();
         this.name = metadata.getName();
@@ -42,8 +40,6 @@ public class FileItem implements Serializable {
         this.size = 0;
         this.type = "folder";
     }
-
-    // ✅ Constructor chung (phòng khi chỉ có Metadata)
     public FileItem(Metadata metadata) {
         this.name = metadata.getName();
         this.path = metadata.getPathLower();
@@ -62,12 +58,10 @@ public class FileItem implements Serializable {
         }
     }
 
-    // 🔹 Helper để lấy đuôi file (loại)
     private String extractType(String name) {
         if (name == null || !name.contains(".")) return "";
         return name.substring(name.lastIndexOf(".") + 1).toLowerCase(Locale.getDefault());
     }
-    // ✅ Constructor tùy chỉnh (dành cho code tạo thủ công trong MainActivity)
     public FileItem(String id, String name, String path, String type, long size, String modifiedStr) {
         this.id = id;
         this.name = name;
@@ -85,7 +79,6 @@ public class FileItem implements Serializable {
         }
     }
 
-    // ✅ Getters
     public String getId() {
         return id;
     }
@@ -114,14 +107,11 @@ public class FileItem implements Serializable {
         return type;
     }
 
-    // ✅ Format ngày sửa đổi
     public String getFormattedDate() {
         if (modified == null) return "";
         SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault());
         return sdf.format(modified);
     }
-
-    // ✅ Format dung lượng file
     public String getFormattedSize() {
         if (isFolder) return "";
         if (size < 1024) return size + " B";
