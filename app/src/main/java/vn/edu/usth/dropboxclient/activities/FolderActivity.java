@@ -1,6 +1,7 @@
 package vn.edu.usth.dropboxclient.activities;
 
 import android.os.Bundle;
+import android.util.Log;
 import android.view.MenuItem;
 import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
@@ -9,14 +10,23 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 import vn.edu.usth.dropboxclient.R;
+import vn.edu.usth.dropboxclient.DropboxClientFactory;
 import vn.edu.usth.dropboxclient.adapters.FileAdapter;
 import vn.edu.usth.dropboxclient.fragments.FileDetailBottomSheet;
 import vn.edu.usth.dropboxclient.models.FileItem;
 
+import com.dropbox.core.DbxException;
+import com.dropbox.core.v2.DbxClientV2;
+import com.dropbox.core.v2.files.FileMetadata;
+import com.dropbox.core.v2.files.FolderMetadata;
+import com.dropbox.core.v2.files.ListFolderResult;
+import com.dropbox.core.v2.files.Metadata;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class FolderActivity extends AppCompatActivity implements FileAdapter.OnFileClickListener {
 
@@ -24,6 +34,10 @@ public class FolderActivity extends AppCompatActivity implements FileAdapter.OnF
     private FileAdapter adapter;
     private SwipeRefreshLayout swipeRefresh;
     private FileItem currentFolder;
+    private DbxClientV2 dropboxClient;
+    private List<FileItem> allFiles = new ArrayList<>();
+    private List<FileItem> currentFiles = new ArrayList<>();
+    private final ExecutorService executorService = Executors.newFixedThreadPool(2);
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -44,6 +58,14 @@ public class FolderActivity extends AppCompatActivity implements FileAdapter.OnF
         adapter = new FileAdapter(this, this);
         recyclerView.setAdapter(adapter);
 
+        try {
+            dropboxClient = DropboxClientFactory.getClient();
+        } catch (IllegalStateException e) {
+            Toast.makeText(this, "Dropbox client not initialized", Toast.LENGTH_SHORT).show();
+            finish();
+            return;
+        }
+
         swipeRefresh.setOnRefreshListener(() -> {
             loadFolderContents();
             swipeRefresh.setRefreshing(false);
@@ -52,17 +74,60 @@ public class FolderActivity extends AppCompatActivity implements FileAdapter.OnF
         loadFolderContents();
     }
 
+    /**
+     * Load nội dung của folder từ Dropbox API sử dụng Executor
+     */
     private void loadFolderContents() {
-        List<FileItem> files = new ArrayList<>(); // Tạm thời bỏ mock data
+        executorService.execute(() -> {
+            List<FileItem> files = new ArrayList<>();
+            try {
+                ListFolderResult result = dropboxClient.files().listFolder(currentFolder.getPath());
+                for (Metadata meta : result.getEntries()) {
+                    if (meta instanceof FileMetadata) {
+                        FileMetadata f = (FileMetadata) meta;
+                        files.add(new FileItem(
+                                f.getId(),
+                                f.getName(),
+                                "file",
+                                f.getServerModified().toString(),
+                                f.getSize(),
+                                f.getPathLower()
+                        ));
+                    } else if (meta instanceof FolderMetadata) {
+                        FolderMetadata folder = (FolderMetadata) meta;
+                        files.add(new FileItem(
+                                folder.getId(),
+                                folder.getName(),
+                                "folder",
+                                "",
+                                0,
+                                folder.getPathLower()
+                        ));
+                    }
+                }
+            } catch (DbxException e) {
+                Log.e("Dropbox", "Error loading subfolder contents: ", e);
+            }
 
-        adapter.submitList(files);
+            runOnUiThread(() -> {
+                allFiles = files;
+                currentFiles = new ArrayList<>(files);
+                adapter.submitList(currentFiles);
+                if (files.isEmpty()) {
+                    Toast.makeText(FolderActivity.this, "Folder is empty", Toast.LENGTH_SHORT).show();
+                }
+            });
+        });
     }
 
     @Override
     public void onFileClick(FileItem file) {
         if (file.isFolder()) {
-            // Navigate to subfolder (not implemented - would need recursive activity)
-            Toast.makeText(this, "Opening " + file.getName(), Toast.LENGTH_SHORT).show();
+            Bundle bundle = new Bundle();
+            bundle.putSerializable("folder", file);
+            android.content.Intent intent = new android.content.Intent(this, FolderActivity.class);
+            intent.putExtras(bundle);
+            startActivity(intent);
         } else {
             FileDetailBottomSheet bottomSheet = FileDetailBottomSheet.newInstance(file);
             bottomSheet.show(getSupportFragmentManager(), "FileDetailBottomSheet");
@@ -71,19 +136,37 @@ public class FolderActivity extends AppCompatActivity implements FileAdapter.OnF
 
     @Override
     public void onFileMenuClick(FileItem file) {
-        String[] options = {"Share", "Delete"};
+        String[] options = {"Delete", "Rename"};
         new MaterialAlertDialogBuilder(this)
                 .setTitle(file.getName())
                 .setItems(options, (dialog, which) -> {
                     if (which == 0) {
-                        Toast.makeText(this, "Share (mock)", Toast.LENGTH_SHORT).show();
+                        deleteDropboxFile(file.getPath());
                     } else {
-// TODO: Implement delete from Dropbox API
-                        loadFolderContents();
-                        Toast.makeText(this, "Deleted", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(this, "Rename not yet implemented", Toast.LENGTH_SHORT).show();
                     }
                 })
                 .show();
+    }
+
+    /**
+     * Xóa file từ Dropbox sử dụng Executor
+     */
+    private void deleteDropboxFile(String path) {
+        executorService.execute(() -> {
+            try {
+                dropboxClient.files().deleteV2(path);
+                runOnUiThread(() -> {
+                    Toast.makeText(FolderActivity.this, "Deleted", Toast.LENGTH_SHORT).show();
+                    loadFolderContents();
+                });
+            } catch (DbxException e) {
+                e.printStackTrace();
+                runOnUiThread(() ->
+                        Toast.makeText(FolderActivity.this, "Delete failed", Toast.LENGTH_SHORT).show()
+                );
+            }
+        });
     }
 
     @Override
@@ -93,5 +176,11 @@ public class FolderActivity extends AppCompatActivity implements FileAdapter.OnF
             return true;
         }
         return super.onOptionsItemSelected(item);
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        executorService.shutdown();
     }
 }
