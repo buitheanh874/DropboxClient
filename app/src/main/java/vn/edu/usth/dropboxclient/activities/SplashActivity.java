@@ -15,21 +15,16 @@ public class SplashActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
 
         new Handler().postDelayed(() -> {
-            // Kiểm tra xem user đã login trước đó hay chưa
             PreferenceManager prefManager = new PreferenceManager(this);
             DbxCredential credential = prefManager.getDropboxCredential();
-
             if (credential != null) {
-                // Nếu có credential, khởi tạo client và chuyển sang MainActivity
                 try {
                     DropboxClientFactory.init(credential);
                     startActivity(new Intent(SplashActivity.this, MainActivity.class));
                 } catch (Exception e) {
-                    // Nếu credential expired hoặc invalid, quay về AuthActivity
                     startActivity(new Intent(SplashActivity.this, AuthActivity.class));
                 }
             } else {
-                // Nếu chưa login, chuyển sang AuthActivity
                 startActivity(new Intent(SplashActivity.this, AuthActivity.class));
             }
             finish();

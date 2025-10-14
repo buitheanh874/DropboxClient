@@ -74,9 +74,6 @@ public class FolderActivity extends AppCompatActivity implements FileAdapter.OnF
         loadFolderContents();
     }
 
-    /**
-     * Load nội dung của folder từ Dropbox API sử dụng Executor
-     */
     private void loadFolderContents() {
         executorService.execute(() -> {
             List<FileItem> files = new ArrayList<>();
@@ -149,9 +146,6 @@ public class FolderActivity extends AppCompatActivity implements FileAdapter.OnF
                 .show();
     }
 
-    /**
-     * Xóa file từ Dropbox sử dụng Executor
-     */
     private void deleteDropboxFile(String path) {
         executorService.execute(() -> {
             try {
