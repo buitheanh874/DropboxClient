@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <group android:checkableBehavior="single">
+        <item
+            android:id="@+id/nav_home"
+            android:icon="@drawable/ic_home"
+            android:title="Home" />
+        <item
+            android:id="@+id/nav_shared"
+            android:icon="@drawable/ic_people"
+            android:title="Shared" />
+        <item
+            android:id="@+id/nav_recents"
+            android:icon="@drawable/ic_recent"
+            android:title="Recents" />
+        <item
+            android:id="@+id/nav_offline"
+            android:icon="@drawable/ic_offline"
+            android:title="Offline" />
+    </group>
+    <item android:title="Other">
+        <menu>
+            <item
+                android:id="@+id/nav_settings"
+                android:icon="@drawable/ic_settings"
+                android:title="Settings" />
+        </menu>
+    </item>
+</menu>
