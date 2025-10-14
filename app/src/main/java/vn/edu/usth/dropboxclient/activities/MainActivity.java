@@ -365,9 +365,6 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.OnFil
                 .show();
     }
 
-    /**
-     * Xóa file từ Dropbox sử dụng Executor
-     */
     private void deleteDropboxFile(String path) {
         executorService.execute(() -> {
             try {
