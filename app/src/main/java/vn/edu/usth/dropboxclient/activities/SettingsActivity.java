@@ -27,7 +27,6 @@ public class SettingsActivity extends AppCompatActivity {
         setContentView(R.layout.activity_settings);
 
         prefManager = new PreferenceManager(this);
-
         Toolbar toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
 
@@ -35,11 +34,9 @@ public class SettingsActivity extends AppCompatActivity {
             getSupportActionBar().setDisplayHomeAsUpEnabled(true);
             getSupportActionBar().setTitle("Settings");
         }
-
         themeGroup = findViewById(R.id.theme_group);
         sortGroup = findViewById(R.id.sort_group);
 
-        // Load current settings
         loadCurrentSettings();
 
         MaterialButton aboutButton = findViewById(R.id.btn_about);
@@ -56,7 +53,6 @@ public class SettingsActivity extends AppCompatActivity {
         super.onResume();
         Log.d(TAG, "onResume called");
     }
-
     @Override
     protected void onPause() {
         super.onPause();
@@ -64,7 +60,6 @@ public class SettingsActivity extends AppCompatActivity {
     }
 
     private void loadCurrentSettings() {
-        // Load theme preference
         String currentTheme = prefManager.getTheme();
         if (PreferenceManager.THEME_LIGHT.equals(currentTheme)) {
             themeGroup.check(R.id.radio_light);
@@ -72,7 +67,6 @@ public class SettingsActivity extends AppCompatActivity {
             themeGroup.check(R.id.radio_dark);
         }
 
-        // Load sort preference
         String currentSort = prefManager.getSortBy();
         if (PreferenceManager.SORT_NAME.equals(currentSort)) {
             sortGroup.check(R.id.radio_sort_name);
@@ -84,7 +78,6 @@ public class SettingsActivity extends AppCompatActivity {
     }
 
     private void saveSettings() {
-        // Save theme
         int themeId = themeGroup.getCheckedRadioButtonId();
         if (themeId == R.id.radio_light) {
             prefManager.setTheme(PreferenceManager.THEME_LIGHT);
@@ -92,7 +85,6 @@ public class SettingsActivity extends AppCompatActivity {
             prefManager.setTheme(PreferenceManager.THEME_DARK);
         }
 
-        // Save sort preference
         int sortId = sortGroup.getCheckedRadioButtonId();
         if (sortId == R.id.radio_sort_name) {
             prefManager.setSortBy(PreferenceManager.SORT_NAME);
@@ -104,10 +96,7 @@ public class SettingsActivity extends AppCompatActivity {
 
         Toast.makeText(this, "Settings saved successfully", Toast.LENGTH_SHORT).show();
 
-        // Optional: finish activity after saving
-        // finish();
     }
-
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         if (item.getItemId() == android.R.id.home) {
@@ -116,7 +105,6 @@ public class SettingsActivity extends AppCompatActivity {
         }
         return super.onOptionsItemSelected(item);
     }
-
     @Override
     protected void onDestroy() {
         Log.d(TAG, "onDestroy called");

@@ -4,14 +4,12 @@
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
-
     <application
         android:allowBackup="true"
         android:icon="@drawable/ic_dropbox"
         android:label="My Drive"
         android:theme="@style/AppTheme"
         android:supportsRtl="true">
-
         <activity
             android:name=".activities.SplashActivity"
             android:theme="@style/SplashTheme"
@@ -27,7 +25,6 @@
             android:exported="true"
             android:launchMode="singleTask">
             <intent-filter>
-                <!-- ⚠️ Thay xxnncso2v6rq3ml bằng APP_KEY thật của bạn -->
                 <data android:scheme="db-xxnncso2v6rq3ml" android:host="1" />
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.BROWSABLE" />
@@ -37,21 +34,16 @@
         <activity
             android:name=".activities.AuthActivity"
             android:exported="true" />
-
-
         <activity
             android:name=".activities.MainActivity"
             android:exported="false" />
-
         <activity
             android:name=".activities.FolderActivity"
             android:parentActivityName=".activities.MainActivity"
             android:exported="false" />
-
         <activity
             android:name=".activities.SettingsActivity"
             android:parentActivityName=".activities.MainActivity"
             android:exported="false" />
     </application>
-
 </manifest>
