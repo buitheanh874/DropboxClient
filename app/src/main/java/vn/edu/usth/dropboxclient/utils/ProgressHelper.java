@@ -4,19 +4,18 @@ import android.app.Dialog;
 import android.content.Context;
 import android.view.LayoutInflater;
 import android.view.View;
-import android.widget.ProgressBar;
 import android.widget.TextView;
-
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
-
+import com.google.android.material.progressindicator.CircularProgressIndicator; // Import mới
 import vn.edu.usth.dropboxclient.R;
 
 public class ProgressHelper {
 
     private Dialog progressDialog;
-    private ProgressBar progressBar;
+    private CircularProgressIndicator progressBar; // Đổi sang CircularProgressIndicator
     private TextView progressText;
     private TextView progressTitle;
+    private TextView progressFileName; // Thêm TextView cho tên file
 
     public ProgressHelper(Context context, String title) {
         View view = LayoutInflater.from(context).inflate(R.layout.dialog_progress, null);
@@ -24,6 +23,7 @@ public class ProgressHelper {
         progressBar = view.findViewById(R.id.progress_bar);
         progressText = view.findViewById(R.id.progress_text);
         progressTitle = view.findViewById(R.id.progress_title);
+        progressFileName = view.findViewById(R.id.progress_file_name); // Tham chiếu tới TextView mới
 
         progressTitle.setText(title);
 
@@ -31,6 +31,13 @@ public class ProgressHelper {
                 .setView(view)
                 .setCancelable(false)
                 .create();
+    }
+
+    // Thêm hàm mới để cài đặt tên file
+    public void setFileName(String fileName) {
+        if (progressFileName != null) {
+            progressFileName.setText(fileName);
+        }
     }
 
     public void show() {

@@ -221,6 +221,9 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.OnFil
                 String name = getFileName(uri);
                 if (name == null) name = "file_" + System.currentTimeMillis();
 
+                progress.setFileName(name);
+                progress.show();
+
                 dropboxClient.files().uploadBuilder("/" + name).withMode(WriteMode.ADD).uploadAndFinish(is);
 
                 String finalName = name;

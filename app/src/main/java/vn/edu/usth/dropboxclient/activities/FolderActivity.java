@@ -181,7 +181,16 @@ public class FolderActivity extends AppCompatActivity implements FileAdapter.OnF
     private void uploadFileToDropbox(Uri fileUri) {
         if (getApplicationContext() == null) return;
         ProgressHelper progressHelper = new ProgressHelper(this, "Uploading file...");
+
+        // Khai báo và gán giá trị cho fileName một lần duy nhất ở đây
+        String fileName = getFileNameFromUri(fileUri);
+        if (fileName == null) {
+            fileName = "file_" + System.currentTimeMillis();
+        }
+        progressHelper.setFileName(fileName); // Sử dụng biến đã khai báo
         progressHelper.show();
+
+        final String finalFileName = fileName; // Sử dụng một biến final cho thread
 
         executorService.execute(() -> {
             try (InputStream inputStream = getContentResolver().openInputStream(fileUri)) {
@@ -193,11 +202,7 @@ public class FolderActivity extends AppCompatActivity implements FileAdapter.OnF
                     return;
                 }
 
-                String fileName = getFileNameFromUri(fileUri);
-                if (fileName == null) {
-                    fileName = "file_" + System.currentTimeMillis();
-                }
-                final String finalFileName = fileName;
+                // KHÔNG khai báo lại "String fileName" ở đây nữa
                 String dropboxPath = currentFolder.getPath() + "/" + finalFileName;
 
                 dropboxClient.files().uploadBuilder(dropboxPath)
