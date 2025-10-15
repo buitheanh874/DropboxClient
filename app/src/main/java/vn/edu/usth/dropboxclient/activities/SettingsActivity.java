@@ -7,6 +7,7 @@ import android.widget.RadioButton;
 import android.widget.RadioGroup;
 import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.app.AppCompatDelegate;
 import androidx.appcompat.widget.Toolbar;
 import vn.edu.usth.dropboxclient.R;
 import vn.edu.usth.dropboxclient.utils.PreferenceManager;
@@ -81,8 +82,10 @@ public class SettingsActivity extends AppCompatActivity {
         int themeId = themeGroup.getCheckedRadioButtonId();
         if (themeId == R.id.radio_light) {
             prefManager.setTheme(PreferenceManager.THEME_LIGHT);
+            AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO);
         } else {
             prefManager.setTheme(PreferenceManager.THEME_DARK);
+            AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_YES);
         }
 
         int sortId = sortGroup.getCheckedRadioButtonId();
