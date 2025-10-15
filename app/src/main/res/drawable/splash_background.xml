@@ -3,5 +3,7 @@
     <item android:drawable="@color/dropbox_blue" />
     <item
         android:drawable="@drawable/ic_dropbox"
-        android:gravity="center" />
+        android:gravity="center"
+        android:width="120dp"
+        android:height="120dp"/>
 </layer-list>
