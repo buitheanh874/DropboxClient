@@ -5,6 +5,7 @@ import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.View;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.widget.EditText;
@@ -50,6 +51,8 @@ import vn.edu.usth.dropboxclient.utils.ErrorHandler;
 public class MainActivity extends AppCompatActivity implements FileAdapter.OnFileClickListener {
     private DrawerLayout drawerLayout;
     private RecyclerView recyclerView;
+
+    private View emptyView;
     private FileAdapter adapter;
     private SwipeRefreshLayout swipeRefresh;
     private DbxClientV2 dropboxClient;
@@ -65,6 +68,7 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.OnFil
 
         executor = Executors.newFixedThreadPool(2);
         setupToolbar();
+        emptyView = findViewById(R.id.empty_view);
         setupDrawer();
         setupRecyclerView();
         setupFab();
@@ -181,6 +185,15 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.OnFil
                 allFiles.addAll(files);
                 currentFiles = new ArrayList<>(files);
                 adapter.submitList(currentFiles);
+
+                if (files.isEmpty()) {
+                    recyclerView.setVisibility(View.GONE);
+                    emptyView.setVisibility(View.VISIBLE);
+                } else {
+                    recyclerView.setVisibility(View.VISIBLE);
+                    emptyView.setVisibility(View.GONE);
+                }
+
             });
         });
     }
