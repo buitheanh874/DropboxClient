@@ -319,15 +319,12 @@ public class FileDetailBottomSheet extends BottomSheetDialogFragment {
 
         executor.execute(() -> {
             try {
-                // Tạo share link từ Dropbox
                 String shareUrl = dropboxClient.sharing()
                         .createSharedLinkWithSettings(file.getPath())
                         .getUrl();
 
                 runOnUI(() -> {
                     progress.dismiss();
-
-                    // Mở Android Share Sheet
                     Intent shareIntent = new Intent(Intent.ACTION_SEND);
                     shareIntent.setType("text/plain");
                     shareIntent.putExtra(Intent.EXTRA_TEXT,
@@ -337,7 +334,6 @@ public class FileDetailBottomSheet extends BottomSheetDialogFragment {
                 });
 
             } catch (Exception e) {
-                // Nếu link đã tồn tại, lấy lại
                 if (e.getMessage() != null && e.getMessage().contains("shared_link_already_exists")) {
                     getExistingLink(progress);
                 } else {

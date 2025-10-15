@@ -8,6 +8,7 @@ import android.util.Log;
 import android.view.MenuItem;
 import android.widget.EditText;
 import android.widget.Toast;
+import android.view.View;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AppCompatActivity;
@@ -52,11 +53,13 @@ public class FolderActivity extends AppCompatActivity implements FileAdapter.OnF
     private List<FileItem> currentFiles = new ArrayList<>();
     private final ExecutorService executorService = Executors.newFixedThreadPool(2);
     private ActivityResultLauncher<Intent> pickFileLauncher;
+    private View emptyView;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_folder);
+        emptyView = findViewById(R.id.empty_view);
 
         currentFolder = (FileItem) getIntent().getSerializableExtra("folder");
 
@@ -144,8 +147,13 @@ public class FolderActivity extends AppCompatActivity implements FileAdapter.OnF
                 allFiles = files;
                 currentFiles = new ArrayList<>(files);
                 adapter.submitList(currentFiles);
+
                 if (files.isEmpty()) {
-                    Toast.makeText(FolderActivity.this, "Folder is empty", Toast.LENGTH_SHORT).show();
+                    recyclerView.setVisibility(View.GONE);
+                    emptyView.setVisibility(View.VISIBLE);
+                } else {
+                    recyclerView.setVisibility(View.VISIBLE);
+                    emptyView.setVisibility(View.GONE);
                 }
             });
         });
@@ -182,15 +190,14 @@ public class FolderActivity extends AppCompatActivity implements FileAdapter.OnF
         if (getApplicationContext() == null) return;
         ProgressHelper progressHelper = new ProgressHelper(this, "Uploading file...");
 
-        // Khai báo và gán giá trị cho fileName một lần duy nhất ở đây
         String fileName = getFileNameFromUri(fileUri);
         if (fileName == null) {
             fileName = "file_" + System.currentTimeMillis();
         }
-        progressHelper.setFileName(fileName); // Sử dụng biến đã khai báo
+        progressHelper.setFileName(fileName);
         progressHelper.show();
 
-        final String finalFileName = fileName; // Sử dụng một biến final cho thread
+        final String finalFileName = fileName;
 
         executorService.execute(() -> {
             try (InputStream inputStream = getContentResolver().openInputStream(fileUri)) {
@@ -202,7 +209,6 @@ public class FolderActivity extends AppCompatActivity implements FileAdapter.OnF
                     return;
                 }
 
-                // KHÔNG khai báo lại "String fileName" ở đây nữa
                 String dropboxPath = currentFolder.getPath() + "/" + finalFileName;
 
                 dropboxClient.files().uploadBuilder(dropboxPath)

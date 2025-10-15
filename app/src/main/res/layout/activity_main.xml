@@ -59,7 +59,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="16dp"
-                        android:text="This folder is empty"
+                        android:text="Your drive is empty"
                         android:textSize="18sp" />
 
                     <TextView

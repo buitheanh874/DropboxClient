@@ -12,10 +12,10 @@ import vn.edu.usth.dropboxclient.R;
 public class ProgressHelper {
 
     private Dialog progressDialog;
-    private CircularProgressIndicator progressBar; // Đổi sang CircularProgressIndicator
+    private CircularProgressIndicator progressBar;
     private TextView progressText;
     private TextView progressTitle;
-    private TextView progressFileName; // Thêm TextView cho tên file
+    private TextView progressFileName;
 
     public ProgressHelper(Context context, String title) {
         View view = LayoutInflater.from(context).inflate(R.layout.dialog_progress, null);
@@ -23,7 +23,7 @@ public class ProgressHelper {
         progressBar = view.findViewById(R.id.progress_bar);
         progressText = view.findViewById(R.id.progress_text);
         progressTitle = view.findViewById(R.id.progress_title);
-        progressFileName = view.findViewById(R.id.progress_file_name); // Tham chiếu tới TextView mới
+        progressFileName = view.findViewById(R.id.progress_file_name);
 
         progressTitle.setText(title);
 
@@ -33,7 +33,6 @@ public class ProgressHelper {
                 .create();
     }
 
-    // Thêm hàm mới để cài đặt tên file
     public void setFileName(String fileName) {
         if (progressFileName != null) {
             progressFileName.setText(fileName);

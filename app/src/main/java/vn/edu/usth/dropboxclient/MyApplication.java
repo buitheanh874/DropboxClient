@@ -10,11 +10,8 @@ public class MyApplication extends Application {
     public void onCreate() {
         super.onCreate();
 
-        // Đọc theme đã lưu
         PreferenceManager prefManager = new PreferenceManager(this);
         String currentTheme = prefManager.getTheme();
-
-        // Áp dụng theme
         if (PreferenceManager.THEME_DARK.equals(currentTheme)) {
             AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_YES);
         } else {
