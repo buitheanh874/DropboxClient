@@ -5,9 +5,9 @@ import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
 import android.util.Log;
-import android.view.View;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.view.View;
 import android.widget.EditText;
 import android.widget.Toast;
 
@@ -39,36 +39,43 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 import vn.edu.usth.dropboxclient.DropboxClientFactory;
 import vn.edu.usth.dropboxclient.R;
 import vn.edu.usth.dropboxclient.adapters.FileAdapter;
 import vn.edu.usth.dropboxclient.fragments.FileDetailBottomSheet;
 import vn.edu.usth.dropboxclient.models.FileItem;
-import vn.edu.usth.dropboxclient.utils.ProgressHelper;
 import vn.edu.usth.dropboxclient.utils.ErrorHandler;
+import vn.edu.usth.dropboxclient.utils.ProgressHelper;
 
 public class MainActivity extends AppCompatActivity implements FileAdapter.OnFileClickListener {
+
+    private static final String TAG = "MainActivity";
     private DrawerLayout drawerLayout;
     private RecyclerView recyclerView;
-
     private View emptyView;
     private FileAdapter adapter;
     private SwipeRefreshLayout swipeRefresh;
     private DbxClientV2 dropboxClient;
-    private List<FileItem> allFiles = new ArrayList<>();
+    private final List<FileItem> allFiles = new ArrayList<>();
     private List<FileItem> currentFiles = new ArrayList<>();
     private ExecutorService executor;
     private ActivityResultLauncher<Intent> pickFileLauncher;
+
+    // FIX: Flag to prevent operations after destroy
+    private volatile boolean isDestroyed = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        isDestroyed = false;
         executor = Executors.newFixedThreadPool(2);
+
+        initViews();
         setupToolbar();
-        emptyView = findViewById(R.id.empty_view);
         setupDrawer();
         setupRecyclerView();
         setupFab();
@@ -86,17 +93,24 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.OnFil
         loadFiles();
     }
 
+    private void initViews() {
+        drawerLayout = findViewById(R.id.drawer_layout);
+        recyclerView = findViewById(R.id.recycler_view);
+        emptyView = findViewById(R.id.empty_view);
+        swipeRefresh = findViewById(R.id.swipe_refresh);
+    }
+
     private void setupToolbar() {
         Toolbar toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
     }
 
     private void setupDrawer() {
-        drawerLayout = findViewById(R.id.drawer_layout);
         NavigationView navView = findViewById(R.id.nav_view);
-        ActionBarDrawerToggle toggle = new ActionBarDrawerToggle(this, drawerLayout,
-                (Toolbar) findViewById(R.id.toolbar), R.string.navigation_drawer_open,
-                R.string.navigation_drawer_close);
+        ActionBarDrawerToggle toggle = new ActionBarDrawerToggle(
+                this, drawerLayout, (Toolbar) findViewById(R.id.toolbar),
+                R.string.navigation_drawer_open, R.string.navigation_drawer_close
+        );
         drawerLayout.addDrawerListener(toggle);
         toggle.syncState();
 
@@ -112,8 +126,6 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.OnFil
     }
 
     private void setupRecyclerView() {
-        recyclerView = findViewById(R.id.recycler_view);
-        swipeRefresh = findViewById(R.id.swipe_refresh);
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
         adapter = new FileAdapter(this, this);
         recyclerView.setAdapter(adapter);
@@ -123,10 +135,9 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.OnFil
     private void setupFab() {
         FloatingActionButton fab = findViewById(R.id.fab);
         fab.setOnClickListener(v -> {
-            String[] options = {"Upload File", "Create Folder"};
             new MaterialAlertDialogBuilder(this)
                     .setTitle("New")
-                    .setItems(options, (d, w) -> {
+                    .setItems(new String[]{"Upload File", "Create Folder"}, (d, w) -> {
                         if (w == 0) openFilePicker();
                         else showCreateFolderDialog();
                     })
@@ -142,7 +153,8 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.OnFil
                         Uri uri = result.getData().getData();
                         if (uri != null) uploadFile(uri);
                     }
-                });
+                }
+        );
     }
 
     private void setupBackPress() {
@@ -159,27 +171,45 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.OnFil
     }
 
     private void loadFiles() {
+        // FIX: Check if destroyed before starting new task
+        if (isDestroyed) return;
+
         swipeRefresh.setRefreshing(true);
+
         executor.execute(() -> {
+            // FIX: Double check inside thread
+            if (isDestroyed) return;
+
             List<FileItem> files = new ArrayList<>();
             try {
                 for (Metadata meta : dropboxClient.files().listFolder("").getEntries()) {
                     if (meta instanceof FileMetadata) {
                         FileMetadata f = (FileMetadata) meta;
-                        files.add(new FileItem(f.getId(), f.getName(), f.getPathLower(),
+                        files.add(new FileItem(
+                                f.getId(), f.getName(), f.getPathLower(),
                                 getFileType(f.getName()), f.getSize(),
-                                f.getServerModified() != null ? f.getServerModified().toString() : ""));
+                                f.getServerModified() != null ? f.getServerModified().toString() : ""
+                        ));
                     } else if (meta instanceof FolderMetadata) {
                         FolderMetadata folder = (FolderMetadata) meta;
-                        files.add(new FileItem(folder.getId(), folder.getName(),
-                                folder.getPathLower(), "folder", 0, ""));
+                        files.add(new FileItem(
+                                folder.getId(), folder.getName(),
+                                folder.getPathLower(), "folder", 0, ""
+                        ));
                     }
                 }
             } catch (DbxException e) {
-                runOnUiThread(() -> ErrorHandler.showErrorDialog(this, "Load Failed", e.getMessage()));
+                Log.e(TAG, "Load error", e);
+                runOnUiThread(() -> {
+                    if (!isFinishing() && !isDestroyed()) {
+                        ErrorHandler.showErrorDialog(this, "Load Failed", e.getMessage());
+                    }
+                });
             }
 
             runOnUiThread(() -> {
+                if (isDestroyed) return;
+
                 swipeRefresh.setRefreshing(false);
                 allFiles.clear();
                 allFiles.addAll(files);
@@ -193,7 +223,6 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.OnFil
                     recyclerView.setVisibility(View.VISIBLE);
                     emptyView.setVisibility(View.GONE);
                 }
-
             });
         });
     }
@@ -212,30 +241,34 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.OnFil
 
     private void uploadFile(Uri uri) {
         ProgressHelper progress = new ProgressHelper(this, "Uploading...");
+
+        String name = getFileName(uri);
+        if (name == null) name = "file_" + System.currentTimeMillis();
+
+        progress.setFileName(name);
         progress.show();
+
+        final String finalName = name;
 
         executor.execute(() -> {
             try (InputStream is = getContentResolver().openInputStream(uri)) {
                 if (is == null) throw new Exception("Cannot open file");
 
-                String name = getFileName(uri);
-                if (name == null) name = "file_" + System.currentTimeMillis();
+                dropboxClient.files().uploadBuilder("/" + finalName)
+                        .withMode(WriteMode.ADD)
+                        .uploadAndFinish(is);
 
-                progress.setFileName(name);
-                progress.show();
-
-                dropboxClient.files().uploadBuilder("/" + name).withMode(WriteMode.ADD).uploadAndFinish(is);
-
-                String finalName = name;
                 runOnUiThread(() -> {
+                    if (isDestroyed) return;
                     progress.dismiss();
-                    ErrorHandler.showSuccessDialog(this, "Upload Complete", "Uploaded: " + finalName);
+                    ErrorHandler.showSuccessDialog(this, "Success", "Uploaded: " + finalName);
                     loadFiles();
                 });
             } catch (Exception e) {
                 runOnUiThread(() -> {
+                    if (isDestroyed) return;
                     progress.dismiss();
-                    ErrorHandler.showErrorDialog(this, "Upload Failed", e.getMessage());
+                    ErrorHandler.showErrorDialog(this, "Failed", e.getMessage());
                 });
             }
         });
@@ -243,14 +276,15 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.OnFil
 
     private String getFileName(Uri uri) {
         if ("content".equals(uri.getScheme())) {
-            try (android.database.Cursor cursor = getContentResolver().query(uri,
-                    new String[]{android.provider.OpenableColumns.DISPLAY_NAME}, null, null, null)) {
+            try (android.database.Cursor cursor = getContentResolver().query(
+                    uri, new String[]{android.provider.OpenableColumns.DISPLAY_NAME},
+                    null, null, null)) {
                 if (cursor != null && cursor.moveToFirst()) {
                     int idx = cursor.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME);
                     if (idx >= 0) return cursor.getString(idx);
                 }
             } catch (Exception e) {
-                Log.e("MainActivity", "Error getting file name", e);
+                Log.e(TAG, "Error getting file name", e);
             }
         }
         String path = uri.getPath();
@@ -264,6 +298,8 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.OnFil
     private void showCreateFolderDialog() {
         EditText input = new EditText(this);
         input.setHint("Folder name");
+        input.setPadding(50, 20, 50, 20);
+
         new MaterialAlertDialogBuilder(this)
                 .setTitle("Create Folder")
                 .setView(input)
@@ -281,11 +317,15 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.OnFil
             try {
                 dropboxClient.files().createFolderV2("/" + name);
                 runOnUiThread(() -> {
+                    if (isDestroyed) return;
                     Toast.makeText(this, "Folder created", Toast.LENGTH_SHORT).show();
                     loadFiles();
                 });
             } catch (DbxException e) {
-                runOnUiThread(() -> ErrorHandler.showErrorDialog(this, "Failed", e.getMessage()));
+                runOnUiThread(() -> {
+                    if (isDestroyed) return;
+                    ErrorHandler.showErrorDialog(this, "Failed", e.getMessage());
+                });
             }
         });
     }
@@ -318,6 +358,7 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.OnFil
         EditText input = new EditText(this);
         input.setText(file.getName());
         input.setPadding(50, 20, 50, 20);
+
         new MaterialAlertDialogBuilder(this)
                 .setTitle("Rename")
                 .setView(input)
@@ -336,12 +377,17 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.OnFil
                 int idx = oldPath.lastIndexOf('/');
                 String parent = idx > 0 ? oldPath.substring(0, idx) : "";
                 dropboxClient.files().moveV2(oldPath, parent + "/" + newName);
+
                 runOnUiThread(() -> {
-                    ErrorHandler.showSuccessDialog(this, "Renamed", "File renamed to: " + newName);
+                    if (isDestroyed) return;
+                    ErrorHandler.showSuccessDialog(this, "Renamed", "File renamed");
                     loadFiles();
                 });
             } catch (DbxException e) {
-                runOnUiThread(() -> ErrorHandler.showErrorDialog(this, "Failed", e.getMessage()));
+                runOnUiThread(() -> {
+                    if (isDestroyed) return;
+                    ErrorHandler.showErrorDialog(this, "Failed", e.getMessage());
+                });
             }
         });
     }
@@ -351,18 +397,21 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.OnFil
             ErrorHandler.showErrorDialog(this, "Failed", "Invalid path");
             return;
         }
-
         ErrorHandler.showConfirmDialog(this, "Delete", "Delete '" + path + "'?",
                 "Delete", "Cancel", () -> {
                     executor.execute(() -> {
                         try {
                             dropboxClient.files().deleteV2(path);
                             runOnUiThread(() -> {
+                                if (isDestroyed) return;
                                 Toast.makeText(this, "Deleted", Toast.LENGTH_SHORT).show();
                                 loadFiles();
                             });
                         } catch (DbxException e) {
-                            runOnUiThread(() -> ErrorHandler.showErrorDialog(this, "Failed", e.getMessage()));
+                            runOnUiThread(() -> {
+                                if (isDestroyed) return;
+                                ErrorHandler.showErrorDialog(this, "Failed", e.getMessage());
+                            });
                         }
                     });
                 }, null);
@@ -407,6 +456,18 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.OnFil
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        if (executor != null) executor.shutdownNow();
+
+        isDestroyed = true;
+        if (executor != null) {
+            executor.shutdownNow();
+            try {
+                if (!executor.awaitTermination(2, TimeUnit.SECONDS)) {
+                    Log.w(TAG, "Executor did not terminate in time");
+                }
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                Log.e(TAG, "Interrupted while waiting for executor", e);
+            }
+        }
     }
 }
