@@ -24,9 +24,9 @@ Android app for managing files on Dropbox. Built with Java and Material Design 3
 ## Setup
 
 1. Clone the repo
-2. Get your Dropbox App Key from https://www.dropbox.com/developers/apps
+2. Get Dropbox App Key from https://www.dropbox.com/developers/apps
 3. Open `AuthActivity.java` and replace the APP_KEY
-4. Open `AndroidManifest.xml` and replace `db-xxnncso2v6rq3ml` with your app key scheme
+4. Open `AndroidManifest.xml` and replace `db-xxnncso2v6rq3ml` with app key scheme
 5. Build and run
 
 ## Tech Stack
@@ -54,7 +54,3 @@ app/src/main/java/vn/edu/usth/dropboxclient/
 - Sort preference saves but doesn't apply to file list
 - No offline mode yet
 - Search only works locally
-
-## License
-
-This is a student project for educational purposes.
