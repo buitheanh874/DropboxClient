@@ -6,7 +6,7 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.TextView;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
-import com.google.android.material.progressindicator.CircularProgressIndicator; // Import mới
+import com.google.android.material.progressindicator.CircularProgressIndicator;
 import vn.edu.usth.dropboxclient.R;
 
 public class ProgressHelper {
@@ -18,6 +18,8 @@ public class ProgressHelper {
     private TextView progressFileName;
 
     public ProgressHelper(Context context, String title) {
+        if (context == null) return;
+
         View view = LayoutInflater.from(context).inflate(R.layout.dialog_progress, null);
 
         progressBar = view.findViewById(R.id.progress_bar);
@@ -34,19 +36,25 @@ public class ProgressHelper {
     }
 
     public void setFileName(String fileName) {
-        if (progressFileName != null) {
+        if (progressFileName != null && fileName != null) {
             progressFileName.setText(fileName);
+            progressFileName.setVisibility(View.VISIBLE);
         }
     }
 
     public void show() {
         if (progressDialog != null && !progressDialog.isShowing()) {
-            progressDialog.show();
+            try {
+                progressDialog.show();
+            } catch (Exception e) {
+            }
         }
     }
 
     public void updateProgress(int progress) {
-        if (progressBar != null) {
+        if (progressBar != null && progressText != null) {
+            // Ensure progress is between 0-100
+            progress = Math.max(0, Math.min(100, progress));
             progressBar.setProgress(progress);
             progressText.setText(progress + "%");
         }
@@ -54,7 +62,14 @@ public class ProgressHelper {
 
     public void dismiss() {
         if (progressDialog != null && progressDialog.isShowing()) {
-            progressDialog.dismiss();
+            try {
+                progressDialog.dismiss();
+            } catch (Exception e) {
+            }
         }
+    }
+
+    public boolean isShowing() {
+        return progressDialog != null && progressDialog.isShowing();
     }
 }
